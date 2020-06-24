@@ -129,6 +129,9 @@ namespace Task_1
         {
             Truck truck = (Truck)obj;
         up:;
+            //Try block tries to signal the CountdownEvent and then wait until 2 threads have signaled
+            //After that 2 threads are allowed into the method. Each subsequent thread is caught in a loop
+            //untill new Countdown event is instantiated at the end of the method
             try
             {
                 countdown.Signal();
@@ -138,15 +141,18 @@ namespace Task_1
             {
                 goto up;
             }
+            //Random load time is assigned to each truck
             truck.TruckLoadTime = rnd.Next(500, 5000);
             Console.WriteLine("Truck " + truck.ID + " is loading. Estimated load time is " + truck.TruckLoadTime + ".");
             Thread.Sleep(truck.TruckLoadTime);
             Console.WriteLine("Truck " + truck.ID + " loaded.");
             trucks.Add(truck);
+            //If there are 2 loaded trucks a new CountdownEvent is instantiated, allowing more trucks to start loading
             if (trucks.Count % 2 == 0)
                 countdown = new CountdownEvent(2);
             else
                 Thread.Sleep(1);
+            //Barrier keeps trucks here untill all 10 are loaded
             barrier.SignalAndWait();
             RouteAcquisition(truck);
         }
