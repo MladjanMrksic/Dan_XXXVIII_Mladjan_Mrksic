@@ -8,12 +8,12 @@ namespace Task_1
 {
     class Program
     {
-        public static ManualResetEvent manual = new ManualResetEvent(false);
+        public static AutoResetEvent are1 = new AutoResetEvent(false);
+        public static AutoResetEvent are2 = new AutoResetEvent(false);
         static Barrier barrier = new Barrier(10);
         static CountdownEvent countdown = new CountdownEvent(2);
         public static CancellationTokenSource cts = new CancellationTokenSource();
         public static CancellationToken ct = cts.Token;
-        static readonly object l = new object();
         static List<int> routes = new List<int>();
         static Queue<int> bestRoutes;
         static readonly Random rnd = new Random();
@@ -28,7 +28,6 @@ namespace Task_1
             Thread t1 = new Thread(ManagersJob);
             t1.Start();
             Thread t2 = new Thread(RNG);
-            Thread.Sleep(100);
             t2.Start();
             t1.Join();
             t2.Join();
@@ -47,53 +46,49 @@ namespace Task_1
         /// </summary>
         public static void ManagersJob()
         {
-            //Lock ensures only one thread has access
-            lock (l)
-            {
-                Console.WriteLine("Manager is waiting for routes.");
-                //This calls for CancelToken to cancel current execution
-                //(In this example it almost never cancels the action because RNG method works so fast that there is no need to cancel)
-                cts.CancelAfter(3000);
-                //Manager waits for at least 3 seconds before continuing with his job
-                Monitor.Wait(l, 3000);
-                Console.WriteLine("Manager is chosing the best routes available.");
-                //We call a method to do the sorting of routes and make selection of 10 best routes
-                LowestDigitsDivisibleByThree();
-                foreach (var item in bestRoutes)
-                    Console.WriteLine(item);
-                Console.WriteLine("Routes are chosen, start loading the trucks.");
-            }
+            Console.WriteLine("Manager is waiting for routes.");
+            //This calls for CancelToken to cancel current execution
+            //(In this example it almost never cancels the action because RNG method works so fast that there is no need to cancel)
+            cts.CancelAfter(3000);
+            //Releases the lock on RNG method
+            are1.Set();
+            //Manager waits for at least 3 seconds before continuing with his job
+            are2.WaitOne(3000);
+            Console.WriteLine("Manager is chosing the best routes available.");
+            //We call a method to do the sorting of routes and make selection of 10 best routes
+            LowestDigitsDivisibleByThree();
+            foreach (var item in bestRoutes)
+                Console.WriteLine(item);
+            Console.WriteLine("Routes are chosen, start loading the trucks.");
         }
         /// <summary>
         /// RNG method generates 1000 random numbers and saves them in text file
         /// </summary>
         public static void RNG()
         {
-            //Lock ensures only one thread has access
-            lock (l)
+            //Locks the method until ManagersJob method signals it to continiue
+            are1.WaitOne();
+            //Creating new instance of StreamWriter and using it to write in file
+            sw = new StreamWriter(path);
+            using (sw)
             {
-                //Creating new instance of StreamWriter and using it to write in file
-                sw = new StreamWriter(path);
-                using (sw)
+                Console.WriteLine("Generating routes.");
+                for (int i = 0; i < 1000; i++)
                 {
-                    Console.WriteLine("Generating routes.");
-                    for (int i = 0; i < 1000; i++)
+                    //Checking if Cancel is requested before each input
+                    if (ct.IsCancellationRequested != true)
                     {
-                        //Checking if Cancel is requested before each input
-                        if (ct.IsCancellationRequested != true)
-                        {
-                            int temp = rnd.Next(1, 5000);
-                            routes.Add(temp);
-                            sw.WriteLine(temp);
-                        }
-                        //If the cancel is requested the loop will break
-                        else
-                            break;
+                        int temp = rnd.Next(1, 5000);
+                        routes.Add(temp);
+                        sw.WriteLine(temp);
                     }
+                    //If the cancel is requested the loop will break
+                    else
+                        break;
                 }
-                //Monitor pulse to notify the manager that the RNG method finished it's job
-                Monitor.Pulse(l);
             }
+            //This Set notifies the manager that the RNG method finished it's job
+            are2.Set();
         }
         /// <summary>
         /// This method reads from file and selects 10 lowest numbers divisible by three
