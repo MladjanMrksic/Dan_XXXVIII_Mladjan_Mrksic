@@ -8,9 +8,12 @@ namespace Task_1
 {
     class Program
     {
+        //Creating two AutoResetEvents to coordinate ManagersJob and RNG methods
         public static AutoResetEvent are1 = new AutoResetEvent(false);
         public static AutoResetEvent are2 = new AutoResetEvent(false);
+        //Creating a barrier with capacity of 10 so all trucks can start at the same time after loading
         static Barrier barrier = new Barrier(10);
+        //CountdownEven with a capacity of 2 is used to make sure only 2 trucks are loading at each given time
         static CountdownEvent countdown = new CountdownEvent(2);
         public static CancellationTokenSource cts = new CancellationTokenSource();
         public static CancellationToken ct = cts.Token;
@@ -20,8 +23,6 @@ namespace Task_1
         static string path = @".../.../Routes.txt";
         static StreamReader sr;
         static StreamWriter sw;
-        //Creating an instance of semaphore class with initial capacity of 2 and max capacity of 2
-        static SemaphoreSlim semaphore = new SemaphoreSlim(2, 2);
         static List<Truck> trucks = new List<Truck>();
         static void Main(string[] args)
         {
